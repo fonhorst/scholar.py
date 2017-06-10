@@ -747,6 +747,7 @@ class SearchScholarQuery(ScholarQuery):
     """
     SCHOLAR_QUERY_URL = ScholarConf.SCHOLAR_SITE + '/scholar?' \
         + 'as_q=%(words)s' \
+        + '&cites=%(cites)s' \
         + '&as_epq=%(phrase)s' \
         + '&as_oq=%(words_some)s' \
         + '&as_eq=%(words_none)s' \
@@ -773,6 +774,7 @@ class SearchScholarQuery(ScholarQuery):
         self.timeframe = [None, None]
         self.include_patents = True
         self.include_citations = True
+        self.cites = None
 
     def set_words(self, words):
         """Sets words that *all* must be found in the result."""
@@ -822,11 +824,15 @@ class SearchScholarQuery(ScholarQuery):
     def set_include_patents(self, yesorno):
         self.include_patents = yesorno
 
+    def set_cites(self, cites):
+        self.cites = cites
+
     def get_url(self):
         if self.words is None and self.words_some is None \
            and self.words_none is None and self.phrase is None \
            and self.author is None and self.pub is None \
-           and self.timeframe[0] is None and self.timeframe[1] is None:
+           and self.timeframe[0] is None and self.timeframe[1] is None \
+                and self.cites is None:
             raise QueryArgumentError('search query needs more parameters')
 
         # If we have some-words or none-words lists, we need to
@@ -852,7 +858,8 @@ class SearchScholarQuery(ScholarQuery):
                    'ylo': self.timeframe[0] or '',
                    'yhi': self.timeframe[1] or '',
                    'patents': '0' if self.include_patents else '1',
-                   'citations': '0' if self.include_citations else '1'}
+                   'citations': '0' if self.include_citations else '1',
+                   'cites': self.cites or ''}
 
         for key, val in urlargs.items():
             urlargs[key] = quote(encode(val))
@@ -1187,6 +1194,8 @@ scholar.py -c 5 -a "albert einstein" -t --none "quantum theory" --after 1970"""
                      help='Do not include patents in results')
     group.add_option('--no-citations', action='store_true', default=False,
                      help='Do not include citations in results')
+    group.add_option('--cites', metavar='CITES', default=None,
+                     help='The search should look in citations of the paper')
     group.add_option('-C', '--cluster-id', metavar='CLUSTER_ID', default=None,
                      help='Do not search, just use articles in given cluster ID')
     group.add_option('-c', '--count', type='int', default=None,
@@ -1285,6 +1294,8 @@ scholar.py -c 5 -a "albert einstein" -t --none "quantum theory" --after 1970"""
             query.set_include_patents(False)
         if options.no_citations:
             query.set_include_citations(False)
+        if options.cites:
+            query.set_cites(options.cites)
 
     if options.count is not None:
         options.count = min(options.count, ScholarConf.MAX_PAGE_RESULTS)
