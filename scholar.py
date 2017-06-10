@@ -1051,6 +1051,8 @@ class ScholarQuerier(object):
 
             self.parse(html)
 
+            ScholarUtils.log('info', 'downloading data for page ' + str(i))
+
             time.sleep(2)
 
     def get_citation_data(self, article):
