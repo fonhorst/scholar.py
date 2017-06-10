@@ -167,6 +167,8 @@ import re
 import sys
 import warnings
 
+import time
+
 try:
     # Try importing for Python 3
     # pylint: disable-msg=F0401
@@ -640,10 +642,20 @@ class ScholarQuery(object):
         # basic data structure:
         self.attrs = {}
 
+        self.start = None
+
+        self.page_limit = 1
+
     def set_num_page_results(self, num_page_results):
         self.num_results = ScholarUtils.ensure_int(
             num_page_results,
             'maximum number of results on page must be numeric')
+
+    def set_page_limit(self, page_limit):
+        self.page_limit = page_limit
+
+    def set_start(self, start):
+        self.start = start
 
     def get_url(self):
         """
@@ -747,6 +759,7 @@ class SearchScholarQuery(ScholarQuery):
     """
     SCHOLAR_QUERY_URL = ScholarConf.SCHOLAR_SITE + '/scholar?' \
         + 'as_q=%(words)s' \
+        + '&start=%(start)s' \
         + '&cites=%(cites)s' \
         + '&as_epq=%(phrase)s' \
         + '&as_oq=%(words_some)s' \
@@ -859,7 +872,8 @@ class SearchScholarQuery(ScholarQuery):
                    'yhi': self.timeframe[1] or '',
                    'patents': '0' if self.include_patents else '1',
                    'citations': '0' if self.include_citations else '1',
-                   'cites': self.cites or ''}
+                   'cites': self.cites or '',
+                   'start': self.start or ''}
 
         for key, val in urlargs.items():
             urlargs[key] = quote(encode(val))
@@ -1025,13 +1039,19 @@ class ScholarQuerier(object):
         self.clear_articles()
         self.query = query
 
-        html = self._get_http_response(url=query.get_url(),
-                                       log_msg='dump of query response HTML',
-                                       err_msg='results retrieval failed')
-        if html is None:
-            return
+        for i in range(0, self.query.page_limit):
 
-        self.parse(html)
+            self.query.set_start(i * self.query.num_results)
+
+            html = self._get_http_response(url=query.get_url(),
+                                           log_msg='dump of query response HTML',
+                                           err_msg='results retrieval failed')
+            if html is None:
+                return
+
+            self.parse(html)
+
+            time.sleep(2)
 
     def get_citation_data(self, article):
         """
@@ -1200,6 +1220,8 @@ scholar.py -c 5 -a "albert einstein" -t --none "quantum theory" --after 1970"""
                      help='Do not search, just use articles in given cluster ID')
     group.add_option('-c', '--count', type='int', default=None,
                      help='Maximum number of results')
+    group.add_option('--pl', type='int', default=None,
+                     help='Number of pages to dowload')
     parser.add_option_group(group)
 
     group = optparse.OptionGroup(parser, 'Output format',
@@ -1300,6 +1322,9 @@ scholar.py -c 5 -a "albert einstein" -t --none "quantum theory" --after 1970"""
     if options.count is not None:
         options.count = min(options.count, ScholarConf.MAX_PAGE_RESULTS)
         query.set_num_page_results(options.count)
+
+    if options.pl is not None:
+        query.set_page_limit(options.pl)
 
     querier.send_query(query)
 
