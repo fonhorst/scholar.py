@@ -91,6 +91,9 @@ Report the total number of articles Google Scholar has for Einstein:
     $ scholar.py --txt-globals --author "albert einstein" | grep '\[G\]' | grep Results
     [G]    Results 4190
 
+Download papers who cite the target one by its id (with paging)
+
+    $ scholar.py --cites 12377823448928484080 -c 10 --csv-header --pl 2
 
 License
 -------
